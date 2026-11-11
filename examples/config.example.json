@@ -1,0 +1,47 @@
+{
+  "site": { "name": "Example node" },
+  "auth": { "required_groups": ["PLATFORM-ADMIN", "IAM-ADMIN"] },
+  "refresh_seconds": 30,
+  "sections": [
+    {
+      "title": "Administer",
+      "links": [
+        {
+          "name": "Portal",
+          "url": "https://portal.example.net/",
+          "description": "Slots, organisations and the data registry",
+          "probe": true
+        },
+        {
+          "name": "Grafana",
+          "url": "http://192.0.2.10:3000/",
+          "description": "Not probed, so it shows as not checked",
+          "probe": false
+        },
+        {
+          "name": "Cloud console",
+          "url": "https://console.example.com/",
+          "description": "Refuses to be framed, so it opens normally",
+          "probe": false,
+          "frame": false
+        }
+      ]
+    }
+  ],
+  "discover": {
+    "dir": "/etc/signpost/routes",
+    "domain": "site.example.net",
+    "core_address": "192.0.2.1",
+    "section_order": ["Administer", "Observe"],
+    "hide": ["mgmt", "oauth2", "signpost"],
+    "catalogue": [
+      { "section": "Observe", "prefix": "panoscope", "name": "Panoscope", "description": "The whole goatnet at a glance" },
+      { "section": "Administer", "prefix": "auth", "name": "Account", "path": "/settings" }
+    ]
+  },
+  "sources": {
+    "netbird": { "url": "https://netbird.example.net" },
+    "portal": { "url": "https://portal.example.net" },
+    "prometheus": [{ "name": "obs-1", "url": "http://192.0.2.10:9090" }]
+  }
+}

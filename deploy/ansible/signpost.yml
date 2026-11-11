@@ -1,0 +1,20 @@
+---
+# Deploys Signpost to a goatnet core host. Copy this file and roles/signpost into
+# the goatcore ops/ansible directory first: see deploy/README.md.
+#
+#   ansible-playbook -i inventory/mgmt-hosts.ini signpost.yml -e target=<site>_hosts
+
+- name: signpost | deploy
+  hosts: "{{ target | mandatory }}"
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: signpost | refuse to apply the placeholder image
+      ansible.builtin.fail:
+        msg: >-
+          signpost_image is still "{{ signpost_image }}". Set it in group_vars to
+          the digest printed by the image workflow:
+          ghcr.io/<owner>/signpost@sha256:<digest>
+      when: signpost_image is search('sha-placeholder')
+  roles:
+    - signpost

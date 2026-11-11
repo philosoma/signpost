@@ -1,0 +1,18 @@
+goat
+Copyright 2025-2026 U.S. Federal Government (in countries where recognized)
+
+This work was created by the U.S. Government and is released for use by anyone,
+for any purpose, including commercial use. Contributions made after the initial
+release are copyright their contributors and licensed under the same terms.
+
+This product is licensed
+under the Apache License, Version 2.0 (see LICENSE at the root of this
+repository).
+
+This product includes third-party software components — including some
+under copyleft licenses (GPL, AGPL) — that run as separate processes
+("aggregation") next to goat services and are not linked into goat
+binaries. The boundary is at the process layer (docs/adr/0110, docs/adr/0111).
+
+For attribution and source-availability links to those third-party
+components, see THIRD_PARTY_LICENSES.md at the root of this repository.

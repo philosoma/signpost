@@ -1,0 +1,11 @@
+---
+site_id: demo
+site_dns_zone: example.net
+public_mgmt_fqdn: example.net
+mesh_ip_a: 192.0.2.1
+ansible_architecture: aarch64
+signpost_portal_api_key: not-a-real-key
+signpost_traefik_dynamic_dir: "{{ playbook_dir }}/fixtures/{{ fixture }}"
+signpost_netbird_token: ""
+# The test runs Signpost outside a container, so it reads the fixtures directly.
+signpost_routes_container_dir: "{{ playbook_dir }}/fixtures/{{ fixture }}"

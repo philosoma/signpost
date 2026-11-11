@@ -1,0 +1,4 @@
+{{define "menu"}}<a class="menu-home" href="/">Dashboard</a>
+{{range .Sections}}<div class="menu-section">{{.Title}}</div>
+{{range .Links}}<a href="{{.URL}}"{{if .ID}} data-frame="{{.ID}}"{{else}} class="external"{{end}}>{{.Name}}</a>
+{{end}}{{end}}{{end}}

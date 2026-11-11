@@ -1,0 +1,196 @@
+---
+# Order matters: the route is written last, after the app and its login door are
+# running, so the hostname never serves anything without a login in front of it.
+
+# --- Is this a node Signpost can run on? --------------------------------------
+- name: signpost | detect what this node runs
+  ansible.builtin.include_tasks: detect.yml
+
+- name: signpost | check the node can support it
+  ansible.builtin.assert:
+    that:
+      - signpost_routed_hosts | length > 0
+      - signpost_allowed_groups | trim | length > 0
+      - signpost_traefik_cert_resolver | length > 0
+    fail_msg: >-
+      Signpost needs a host with Traefik routes in {{ signpost_traefik_dynamic_dir }}
+      (found {{ signpost_routed_hosts | length }}), at least one allowed group, and
+      publicly trusted certificates. A goatnet on a private CA, such as goatlite, has
+      no cert resolver: oauth2-proxy-surface cannot trust that CA, so login would fail.
+
+- name: signpost | Hydra must answer before a login door is added
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:4445/admin/clients?limit=1"
+    status_code: [200]
+
+- name: signpost | what was detected
+  ansible.builtin.debug:
+    msg: >-
+      Links: {{ signpost_detected.sections | map(attribute='links') | flatten | map(attribute='name') | join(', ') }}.
+      Prometheus: {{ signpost_detected.prometheus | map(attribute='name') | join(', ') or 'none' }}.
+      Portal: {{ signpost_effective_portal_url or 'none' }}.
+      NetBird: {{ signpost_netbird_url if signpost_netbird_token | length > 0 else 'no token' }}.
+
+# --- Secrets -------------------------------------------------------------------
+- name: signpost | secrets directory
+  ansible.builtin.file:
+    path: "{{ signpost_secrets_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: signpost | OIDC client secret
+  ansible.builtin.include_tasks: persisted-secret.yml
+  vars:
+    persisted_name: oidc-client-secret
+    persisted_fact: signpost_effective_client_secret
+    persisted_supplied: "{{ signpost_oidc_client_secret }}"
+    persisted_generate: "-hex 32"
+
+# Hex and 16 bytes: oauth2-proxy rejects base64 secrets containing + or /.
+- name: signpost | OIDC cookie secret
+  ansible.builtin.include_tasks: persisted-secret.yml
+  vars:
+    persisted_name: oidc-cookie-secret
+    persisted_fact: signpost_effective_cookie_secret
+    persisted_supplied: "{{ signpost_oidc_cookie_secret }}"
+    persisted_generate: "-hex 16"
+
+# The portal re-reads this store on an interval, so it needs no restart.
+- name: signpost | portal key
+  when: signpost_effective_portal_url | length > 0
+  block:
+    - name: signpost | portal service key
+      ansible.builtin.include_tasks: persisted-secret.yml
+      vars:
+        persisted_name: portal-key
+        persisted_fact: signpost_portal_api_key
+        persisted_supplied: "{{ signpost_portal_key_seed }}"
+        persisted_generate: "-base64 24"
+
+    - name: signpost | register the key in the portal service-key store
+      ansible.builtin.copy:
+        content: "{{ signpost_portal_key_id }}:{{ signpost_portal_api_key }}\n"
+        dest: "{{ signpost_portal_keystore_dir }}/{{ signpost_portal_key_id }}.key"
+        owner: "65532"
+        group: "65532"
+        mode: "0640"
+      no_log: true
+
+    - name: signpost | prove the portal accepts the key
+      ansible.builtin.include_tasks: tasks/assert-portal-key-accepted.yml
+      vars:
+        portal_key_assert_service: signpost
+        portal_key_assert_url: "{{ signpost_effective_portal_url }}"
+        portal_key_assert_key: "{{ signpost_portal_api_key }}"
+
+# --- The app -------------------------------------------------------------------
+- name: signpost | compose directory
+  ansible.builtin.file:
+    path: "{{ signpost_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: signpost | render docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ signpost_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: signpost | recreate container
+
+- name: signpost | render config.json
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ signpost_compose_dir }}/config.json"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: signpost | recreate container
+
+- name: signpost | render .env
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ signpost_compose_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: signpost | recreate container
+
+- name: signpost | pull image
+  community.docker.docker_image:
+    name: "{{ signpost_image }}"
+    source: pull
+    force_source: true
+
+- name: signpost | start the container
+  community.docker.docker_compose_v2:
+    project_src: "{{ signpost_compose_dir }}"
+    state: present
+    pull: missing
+
+- name: signpost | apply pending restarts
+  ansible.builtin.meta: flush_handlers
+
+- name: signpost | wait for the container to be healthy
+  ansible.builtin.command:
+    cmd: "docker inspect -f '{{ '{{' }}.State.Health.Status{{ '}}' }}' signpost"
+  register: signpost_health
+  retries: 20
+  delay: 3
+  until: signpost_health.stdout | trim == 'healthy'
+  changed_when: false
+
+# --- The login door ------------------------------------------------------------
+- name: signpost | login door
+  ansible.builtin.include_role:
+    name: oauth2-proxy-surface
+  vars:
+    oauth2_proxy_surface_name: signpost
+    oauth2_proxy_surface_hostname: "{{ signpost_hostname }}"
+    oauth2_proxy_surface_upstream_host: signpost
+    oauth2_proxy_surface_upstream_port: 8080
+    oauth2_proxy_surface_allowed_groups: "{{ signpost_allowed_groups }}"
+    oauth2_proxy_surface_client_secret: "{{ signpost_effective_client_secret }}"
+    oauth2_proxy_surface_cookie_secret: "{{ signpost_effective_cookie_secret }}"
+    oauth2_proxy_surface_traefik_network: "{{ signpost_traefik_network }}"
+    # The page polls /api/. Without this, each poll on an expired session mints
+    # a CSRF cookie until the browser is locked out.
+    oauth2_proxy_surface_api_routes: "^/api/"
+    oauth2_proxy_surface_skip_auth_routes: "^/healthz$"
+
+# --- The route, last -----------------------------------------------------------
+- name: signpost | render the Traefik route
+  ansible.builtin.template:
+    src: traefik-signpost.yml.j2
+    dest: "{{ signpost_traefik_dynamic_dir }}/{{ signpost_traefik_dynamic_filename }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+# A deploy is only good if an anonymous visitor is sent to log in. -k because the
+# first certificate may still be issuing; this tests the door, not TLS.
+- name: signpost | an anonymous request must be redirected to login
+  ansible.builtin.command:
+    argv:
+      - curl
+      - -sk
+      - -o
+      - /dev/null
+      - -m
+      - "8"
+      - -w
+      - "%{http_code}"
+      - --resolve
+      - "{{ signpost_hostname }}:443:{{ signpost_core_address }}"
+      - "https://{{ signpost_hostname }}/"
+  register: signpost_door_check
+  retries: 10
+  delay: 3
+  until: signpost_door_check.stdout | trim in ['302', '303', '307']
+  changed_when: false

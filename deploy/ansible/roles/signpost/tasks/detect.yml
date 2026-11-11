@@ -1,0 +1,42 @@
+---
+# Works out links and sources from the host. Changes nothing.
+- name: signpost | read the routes this host serves
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -rhoE
+      - 'Host\(`[^`]+`\)'
+      - "{{ signpost_traefik_dynamic_dir }}"
+  register: signpost_route_grep
+  changed_when: false
+  failed_when: signpost_route_grep.rc > 1
+
+- name: signpost | work out routed hosts and pins
+  ansible.builtin.set_fact:
+    signpost_routed_hosts: >-
+      {{ signpost_route_grep.stdout_lines
+         | map('regex_replace', '^Host\(`|`\)$', '')
+         | reject('search', '[<>{} ]')
+         | reject('equalto', signpost_hostname)
+         | unique | sort | list }}
+
+- name: signpost | look for the rate-limit middleware
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -rqE
+      - "^\\s+{{ signpost_traefik_ratelimit_middleware.split('@')[0] }}:"
+      - "{{ signpost_traefik_dynamic_dir }}"
+  register: signpost_ratelimit_grep
+  changed_when: false
+  failed_when: signpost_ratelimit_grep.rc > 1
+
+- name: signpost | work out links and sources
+  ansible.builtin.set_fact:
+    signpost_pinned_hosts: "{{ signpost_routed_hosts }}"
+    signpost_ratelimit_available: "{{ signpost_ratelimit_grep.rc == 0 }}"
+    signpost_effective_portal_url: >-
+      {{ signpost_portal_url if signpost_portal_url | length > 0 else
+         ('https://portal.' ~ site_id ~ '.' ~ site_dns_zone
+          if ('portal.' ~ site_id ~ '.' ~ site_dns_zone) in signpost_routed_hosts else '') }}
+    signpost_detected: "{{ lookup('ansible.builtin.template', 'links.json.j2') | from_json }}"

@@ -1,0 +1,106 @@
+---
+# The only setting a goatnet must supply. The playbook refuses the placeholder.
+# Use the digest from the image workflow: ghcr.io/<owner>/signpost@sha256:<digest>
+signpost_image: "ghcr.io/philosoma/signpost:sha-placeholder"
+
+# Everything below has a working default on a full goatnet. site_id,
+# site_dns_zone, mesh_ip_a and site_id_upper are goatcore variables.
+
+signpost_site_name: "{{ site_id | mandatory }}"
+# Optional flag after the page title. "gb" is the only one available so far.
+signpost_site_flag: ""
+signpost_hostname: "signpost.{{ site_id | mandatory }}.{{ site_dns_zone | mandatory }}"
+signpost_compose_dir: "/opt/signpost"
+signpost_refresh_seconds: 30
+# Without this, compose can resolve a multi-arch digest to amd64 on an arm64 host.
+signpost_image_platform: "linux/{{ 'arm64' if ansible_architecture in ['aarch64', 'arm64'] else 'amd64' }}"
+
+# ----- Login -----------------------------------------------------------------
+# Follows the identity console unless set. Enforced by oauth2-proxy at the door
+# and again by Signpost itself.
+signpost_allowed_groups: "{{ id_admin_console_oauth2_proxy_allowed_groups | default('PLATFORM-ADMIN,IAM-ADMIN') }}"
+# Generated on the host on first deploy and kept there. Set these only to supply
+# your own: client secret 32+ characters, cookie secret 16, 24 or 32 characters.
+signpost_oidc_client_secret: ""
+signpost_oidc_cookie_secret: ""
+signpost_secrets_dir: /etc/goat/signpost
+
+# ----- Traefik ---------------------------------------------------------------
+# These follow the portal's settings, because they are the same for every surface.
+signpost_traefik_cert_resolver: "{{ portal_traefik_cert_resolver | default('le') }}"
+signpost_traefik_mesh_only_middleware: "{{ portal_traefik_mesh_only_middleware | default('mesh-only-allowlist@file') }}"
+signpost_traefik_ratelimit_middleware: "goat-ratelimit@file"
+signpost_traefik_network: "mgmt"
+signpost_traefik_dynamic_dir: "/etc/traefik/dynamic"
+signpost_traefik_dynamic_filename: "signpost.yml"
+signpost_traefik_router_name: "signpost"
+
+# ----- Stats sources ---------------------------------------------------------
+# Portal: used when the host has a portal route. Set a URL to override detection.
+signpost_portal_url: ""
+signpost_portal_key_seed: ""
+signpost_portal_keystore_dir: /opt/goat-zenoh-portal/operator-keys.d
+signpost_portal_key_id: signpost
+
+# NetBird: optional. With no token the tile shows "Off" and no request is made.
+# Use a service user with the auditor role.
+signpost_netbird_url: "https://{{ public_mgmt_fqdn | default('netbird.' ~ site_dns_zone) }}"
+signpost_netbird_token: "{{ lookup('env', (site_id_upper | default(site_id | upper | replace('-', '_'))) ~ '_SIGNPOST_NETBIRD_TOKEN') }}"
+
+# Observability: one Prometheus and one Grafana link per host in this inventory
+# group. Hosts use mesh_ip if set, otherwise ansible_host, so deploy with the
+# inventory on the address the core can reach.
+signpost_obs_group: "{{ site_id | replace('-', '_') }}_obs_hosts"
+signpost_prometheus_port: 9090
+signpost_grafana_port: 3000
+# Set a list of {name, url} to replace detection. [] with detection off disables it.
+signpost_prometheus: []
+signpost_obs_detect: true
+
+# Docker's resolver cannot see mesh CoreDNS, so every hostname routed on this
+# host is pinned to this address inside the container.
+signpost_core_address: "{{ mesh_ip_a | mandatory }}"
+
+# ----- Links -----------------------------------------------------------------
+# Signpost reads this host's Traefik route files while it runs. A catalogue app
+# appears when a route for <prefix>.<site_id>.<site_dns_zone> exists and goes
+# when it is removed, with no redeploy. A routed app the catalogue does not
+# name appears under signpost_other_section with its prefix as its name; add it
+# here to name it and move it (that is a config change, not a new image).
+signpost_routes_container_dir: /etc/signpost/routes
+signpost_other_section: Other
+signpost_sections_order: [Administer, Observe, Help, Play]
+signpost_catalogue:
+  - {section: Administer, prefix: dashboard, name: NetBird dashboard, description: "Mesh peers, groups and access rules"}
+  - {section: Administer, prefix: admin-dashboard, name: NetBird admin dashboard, description: "Break-glass mesh changes"}
+  - {section: Administer, prefix: portal, name: Portal, description: "Slots, organisations and the data registry"}
+  - {section: Administer, prefix: admin.auth, name: Identity console, description: "People, groups and onboarding"}
+  - {section: Administer, prefix: auth, name: Account, description: "Your password and security settings", path: /settings}
+  - {section: Administer, prefix: herd, name: Herd, description: "Bearer-gear console"}
+  - {section: Observe, prefix: panoscope, name: Panoscope, description: "The whole goatnet at a glance"}
+  - {section: Observe, prefix: flashlight, name: Flashlight, description: "Live fabric traffic and audit analytics"}
+  - {section: Observe, prefix: stethoscope, name: Stethoscope, description: "Graded fabric health"}
+  - {section: Observe, prefix: microscope, name: Microscope, description: "One entity in detail"}
+  - {section: Observe, prefix: netvis, name: Netvis, description: "Mesh reachability"}
+  - {section: Observe, prefix: isitup, name: Is it up, description: "Per-site service status"}
+  - {section: Observe, prefix: relay-health, name: Relay health, description: "Relay fleet health"}
+  - {section: Observe, prefix: consistency, name: Consistency console, description: "Cross-system consistency"}
+  - {section: Observe, prefix: compliance, name: Compliance, description: "Cloud compliance dashboard"}
+  - {section: Help, prefix: assistant, name: Node Assistant, description: "Ask about the node and its apps, or ask for a change"}
+  - {section: Help, prefix: get, name: Get goat, description: "Download the goat CLI"}
+  - {section: Help, prefix: guide, name: Guide, description: "Onboarding guide"}
+  - {section: Help, prefix: help, name: Help desk, description: "FAQ, triage and tickets"}
+  - {section: Help, prefix: brief, name: Briefing, description: "Goatnet briefing deck"}
+  - {section: Help, prefix: dataflows, name: Data flows, description: "Data flow patterns deck"}
+  - {section: Play, prefix: airdefenders, name: Air Defenders, description: "The game and its shared leaderboard"}
+  - {section: Play, prefix: sentry, name: Sentry, description: "Watch and control the sentry turrets over the fabric"}
+
+# Prefixes to leave off the page even though they have a route.
+signpost_hidden_surfaces: []
+# Routed hosts that are plumbing, not pages to visit. Signpost's own host is
+# always left off. onboard serves only APIs; grafana is goatcore's route for a
+# core-local Grafana, which the observability hosts' links replace.
+signpost_infra_prefixes: [mgmt, oauth2, onboard, grafana]
+# Your own links: {section, name, url, description, probe}. A new section name
+# appears after the standard ones.
+signpost_extra_links: []

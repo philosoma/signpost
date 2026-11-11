@@ -1,0 +1,6 @@
+/signpost
+*.env
+.env
+*.key
+*.pem
+config.local.json

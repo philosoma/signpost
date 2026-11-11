@@ -1,0 +1,20 @@
+---
+# Runs the role's detection and rendering against fixture route files, on this
+# machine only. See run.sh.
+- name: signpost detection test
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../defaults/main.yml
+    - vars.yml
+  tasks:
+    - name: Detect
+      ansible.builtin.include_tasks: ../tasks/detect.yml
+
+    - name: Render
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "{{ out }}/{{ item }}"
+        mode: "0600"
+      loop: [config.json, docker-compose.yml, traefik-signpost.yml]

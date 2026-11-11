@@ -1,0 +1,55 @@
+{#- Works out sections and Prometheus sources from what this node actually runs. -#}
+{%- set links = [] -%}
+{#- Apps are found by Signpost itself while it runs, from the route files mounted
+    at signpost_routes_container_dir; the catalogue below names them. Only links
+    that are not routes on this node are listed here. -#}
+{%- set catalogue = [] -%}
+{%- for item in signpost_catalogue -%}
+  {%- set entry = {'section': item.section, 'prefix': item.prefix, 'name': item.name} -%}
+  {%- for key in ['description', 'path', 'probe', 'frame'] if item[key] is defined -%}
+    {%- set _ = entry.update({key: item[key]}) -%}
+  {%- endfor -%}
+  {%- set _ = catalogue.append(entry) -%}
+{%- endfor -%}
+{%- set discover = {
+  'dir': signpost_routes_container_dir,
+  'domain': site_id ~ '.' ~ site_dns_zone,
+  'core_address': signpost_core_address,
+  'catalogue': catalogue,
+  'hide': (signpost_hidden_surfaces + signpost_infra_prefixes + [signpost_hostname.split('.')[0]]) | unique | list,
+  'section_order': signpost_sections_order | list,
+  'other_section': signpost_other_section,
+} -%}
+
+{%- set prometheus = signpost_prometheus | list -%}
+{%- if signpost_obs_detect | bool -%}
+  {%- for name in groups.get(signpost_obs_group, []) -%}
+    {%- set address = hostvars[name].mesh_ip | default(hostvars[name].ansible_host | default(name)) -%}
+    {%- if not signpost_prometheus -%}
+      {%- set _ = prometheus.append({'name': name, 'url': 'http://' ~ address ~ ':' ~ signpost_prometheus_port}) -%}
+    {%- endif -%}
+    {#- Not probed: the core is not normally allowed to reach Grafana's port. -#}
+    {%- set _ = links.append({'section': 'Observe', 'name': 'Grafana (' ~ name ~ ')', 'url': 'http://' ~ address ~ ':' ~ signpost_grafana_port ~ '/', 'description': 'Metrics dashboards', 'probe': false}) -%}
+  {%- endfor -%}
+{%- endif -%}
+
+{%- for extra in signpost_extra_links -%}
+  {%- set _ = links.append(extra) -%}
+{%- endfor -%}
+
+{%- set titles = signpost_sections_order | list -%}
+{%- for link in links -%}
+  {%- if link.section not in titles -%}{%- set _ = titles.append(link.section) -%}{%- endif -%}
+{%- endfor -%}
+
+{%- set sections = [] -%}
+{%- for title in titles -%}
+  {%- set members = [] -%}
+  {%- for link in links if link.section == title -%}
+    {%- set clean = {} -%}
+    {%- for key, value in link.items() if key != 'section' -%}{%- set _ = clean.update({key: value}) -%}{%- endfor -%}
+    {%- set _ = members.append(clean) -%}
+  {%- endfor -%}
+  {%- if members -%}{%- set _ = sections.append({'title': title, 'links': members}) -%}{%- endif -%}
+{%- endfor -%}
+{{ {'sections': sections, 'prometheus': prometheus, 'discover': discover} | to_json }}

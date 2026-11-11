@@ -1,0 +1,18 @@
+# Comments naming Host(`<site>.<zone>`) must be ignored.
+http:
+  middlewares:
+    goat-ratelimit:
+      rateLimit: {average: 50}
+  routers:
+    a: {rule: "Host(`dashboard.demo.example.net`)"}
+    b: {rule: "Host(`portal.demo.example.net`)"}
+    c: {rule: "Host(`auth.demo.example.net`)"}
+    d: {rule: "Host(`panoscope.demo.example.net`)"}
+    e: {rule: "Host(`guide.demo.example.net`) && Path(`/`)"}
+    f: {rule: "Host(`oauth2.demo.example.net`)"}
+    g: {rule: "Host(`example.net`)"}
+    h: {rule: "Host(`signpost.demo.example.net`)"}
+    i: {rule: "Host(`airdefenders.demo.example.net`)"}
+    j: {rule: "Host(`sentry.demo.example.net`)"}
+    k: {rule: "Host(`mgmt.demo.example.net`)"}
+    l: {rule: "Host(`new-app.demo.example.net`)"}

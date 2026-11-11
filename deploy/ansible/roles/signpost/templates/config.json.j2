@@ -1,0 +1,18 @@
+{% set sources = {} %}
+{% if signpost_effective_portal_url | length > 0 %}
+{% set _ = sources.update({'portal': {'url': signpost_effective_portal_url}}) %}
+{% endif %}
+{% if signpost_netbird_token | length > 0 %}
+{% set _ = sources.update({'netbird': {'url': signpost_netbird_url}}) %}
+{% endif %}
+{% if signpost_detected.prometheus | length > 0 %}
+{% set _ = sources.update({'prometheus': signpost_detected.prometheus}) %}
+{% endif %}
+{{ {
+  'site': ({'name': signpost_site_name, 'flag': signpost_site_flag} if signpost_site_flag else {'name': signpost_site_name}),
+  'auth': {'required_groups': signpost_allowed_groups.split(',') | map('trim') | list},
+  'refresh_seconds': signpost_refresh_seconds | int,
+  'sections': signpost_detected.sections,
+  'discover': signpost_detected.discover,
+  'sources': sources
+} | to_nice_json(indent=2) }}

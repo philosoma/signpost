@@ -1,0 +1,98 @@
+{{define "live"}}{{$now := .Now}}
+<section class="tiles" aria-label="Summary">
+{{range .Tiles}}
+  <div class="card">
+    <div class="tile-head">
+      <span class="kicker">{{.Label}}</span>
+      <span class="badge {{.Chip}}">{{.Status}}</span>
+    </div>
+    <div class="tile-value">{{.Value}}</div>
+    <div class="tile-detail">{{.Detail}}</div>
+  </div>
+{{end}}
+</section>
+
+{{range .Alerts}}
+<div class="banner"><strong>{{.Name}}</strong>{{if .Severity}} · {{.Severity}}{{end}} · {{.Source}}</div>
+{{end}}
+
+{{range $i, $s := .Sections}}
+<section id="section-{{$i}}">
+  <h2 class="section-title">{{$s.Title}}</h2>
+  <div class="links">
+  {{range $s.Links}}
+    <a class="row" href="{{.URL}}"{{if .ID}} data-frame="{{.ID}}"{{end}}>
+      <div class="h">
+        <span>{{.Name}}</span>
+        <span class="badge {{chip .Status.State}}">{{stateLabel .Status.State}}</span>
+      </div>
+      {{if .Description}}<div class="m">{{.Description}}</div>{{end}}
+      {{if .Status.Detail}}<div class="fault">{{.Status.Detail}}</div>{{end}}
+    </a>
+  {{end}}
+  </div>
+</section>
+{{end}}
+
+{{if .Prom}}
+<section id="observability">
+  <h2 class="section-title">Observability</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Prometheus</th><th>Targets up</th><th>Firing</th><th>Updated</th></tr></thead>
+    <tbody>
+    {{range .Prom}}
+      <tr>
+        <td>{{.Name}}</td>
+        {{if .UpdatedAt.IsZero}}
+          <td colspan="2">{{if .Error}}Unavailable: {{.Error}}{{else}}Checking{{end}}</td>
+          <td>never</td>
+        {{else}}
+          <td>{{.TargetsUp}}/{{.TargetsTotal}}{{range .DownTargets}}<div class="cell-note">Down: {{.}}</div>{{end}}</td>
+          <td>{{len .Alerts}}</td>
+          <td>{{ago $now .UpdatedAt}}{{if .Error}}<div class="cell-note warn">Stale: {{.Error}}</div>{{end}}</td>
+        {{end}}
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{if .Hosts}}
+  <h3 class="sub-title">Host usage</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Reported by</th><th>Instance</th><th>CPU</th><th>Memory</th><th>Root disk</th></tr></thead>
+    <tbody>
+    {{range .Hosts}}
+      <tr>
+        <td>{{.Source}}</td>
+        <td>{{.Instance}}</td>
+        <td class="{{meter .CPU}}">{{pct .CPU}}</td>
+        <td class="{{meter .Memory}}">{{pct .Memory}}</td>
+        <td class="{{meter .Disk}}">{{pct .Disk}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{end}}
+</section>
+{{end}}
+
+{{with .NetBird}}{{if .Offline}}
+<section id="offline-peers">
+  <h2 class="section-title">Offline peers</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Peer</th><th>Last seen</th></tr></thead>
+    <tbody>
+    {{range .Offline}}<tr><td>{{.Name}}</td><td>{{ago $now .LastSeen}}</td></tr>{{end}}
+    </tbody>
+  </table>
+  </div>
+</section>
+{{end}}{{end}}
+
+{{/* The menu, refreshed with the page, so a newly found app is listed. */}}
+<template id="sp-menu-next">{{template "menu" .}}</template>
+{{end}}

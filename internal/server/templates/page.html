@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Site}} · Signpost</title>
+<link rel="stylesheet" href="/static/signpost.css">
+<script src="/static/theme.js"></script>
+<script src="/static/signpost.js" defer></script>
+</head>
+<body data-refresh="{{.RefreshSeconds}}" data-site="{{.Site}}">
+<header class="topbar">
+  <a class="brand" href="/" title="Back to the dashboard">
+    <span class="mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5v3M12 10.5v2.5M12 17.5v4"/><path d="M5 5.5h11l3 2.5-3 2.5H5z"/><path d="M19 13H8l-3 2.25L8 17.5h11z"/><path d="M8.5 21.5h7"/></svg></span>
+    <span class="brand-name">{{.Site}}</span>{{if .Flag}}<img class="site-flag" src="/static/flags/{{.Flag}}.svg" alt="">{{end}}
+  </a>
+  <span id="sp-current" class="current" hidden></span>
+  <span class="spacer"></span>
+  <details class="menu" id="sp-menu">
+    <summary>Services</summary>
+    <div class="menu-panel" id="sp-menu-panel">{{template "menu" .Live}}</div>
+  </details>
+  <a id="sp-popout" class="popout" href="/" target="_blank" rel="noopener" title="Open in its own tab" aria-label="Open in its own tab" hidden>↗</a>
+  <span id="sp-conn" class="sp-conn" role="status" hidden></span>
+  <button type="button" id="sp-theme" class="theme-toggle" title="Toggle light/dark theme" aria-label="Toggle light or dark theme" hidden>☾</button>
+  {{if .Viewer}}<span class="actor" title="{{.Viewer}}">{{.Viewer}}</span>{{end}}
+</header>
+<iframe id="sp-frame" class="frame" title="Service"></iframe>
+<main>
+<div id="sp-live">
+{{template "live" .Live}}
+</div>
+</main>
+<footer>Signpost {{.Version}} · refreshes every {{.RefreshSeconds}}s</footer>
+</body>
+</html>
