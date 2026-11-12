@@ -15,6 +15,9 @@ from other systems and never changes them.
 | Connected and offline peers | NetBird `GET /api/peers` | NetBird token, auditor role |
 | Targets, firing alerts, host CPU, memory and disk | Prometheus queries on each observability host | None |
 | Organisations, topics, machines | Portal `GET /api/catalog`, `GET /api/machines` | Portal service key |
+| Federation peerings: live, in setup, needing attention | Federation `GET /api/summary` | Federation service key |
+
+A tile whose source isn't configured is left off the page.
 
 Stats are collected in the background, every 30 seconds by default, so opening the
 page adds no load to those systems. A source that fails keeps its last data, marked
@@ -63,7 +66,8 @@ Every request except `/healthz` needs a group header, so test with:
 curl -H 'X-Forwarded-Groups: PLATFORM-ADMIN' http://localhost:8080/
 ```
 
-Set `SIGNPOST_NETBIRD_TOKEN` and `SIGNPOST_PORTAL_API_KEY` to enable those sources.
+Set `SIGNPOST_NETBIRD_TOKEN`, `SIGNPOST_PORTAL_API_KEY` and `SIGNPOST_FEDERATION_KEY`
+to enable those sources.
 
 ## Build and deploy
 

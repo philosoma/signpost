@@ -45,6 +45,8 @@ func New(cfg *config.Config, src Source, version string, log *slog.Logger) (http
 		"pct":        func(v float64) string { return fmt.Sprintf("%.0f%%", v) },
 		"chip":       chipClass,
 		"stateLabel": stateLabel,
+		"fedChip":    fedChip,
+		"fedLabel":   fedLabel,
 		"meter":      meterClass,
 	}).ParseFS(templateFS, "templates/*.html")
 	if err != nil {

@@ -31,8 +31,18 @@
   changed_when: false
   failed_when: signpost_ratelimit_grep.rc > 1
 
+- name: signpost | look for the Federation summary key store
+  ansible.builtin.stat:
+    path: "{{ signpost_federation_keystore_dir }}"
+  register: signpost_federation_keystore
+
 - name: signpost | work out links and sources
   ansible.builtin.set_fact:
+    signpost_effective_federation_url: >-
+      {{ signpost_federation_url if signpost_federation_url | length > 0 else
+         (signpost_federation_internal_url
+          if ('federation.' ~ site_id ~ '.' ~ site_dns_zone) in signpost_routed_hosts
+             and signpost_federation_keystore.stat.isdir | default(false) else '') }}
     signpost_pinned_hosts: "{{ signpost_routed_hosts }}"
     signpost_ratelimit_available: "{{ signpost_ratelimit_grep.rc == 0 }}"
     signpost_effective_portal_url: >-

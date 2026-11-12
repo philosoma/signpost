@@ -10,6 +10,7 @@ detects the node's surfaces, so the only required setting is the image.
 | Links | Found live from this host's Traefik routes, which are mounted read-only into the container. `signpost_catalogue` names and places them; an unnamed route shows under `signpost_other_section`. Add your own with `signpost_extra_links`; hide some with `signpost_hidden_surfaces` |
 | Prometheus and Grafana | Hosts in the `<site_id>_obs_hosts` inventory group |
 | Portal stats | Used when the host has a portal route. The service key is generated and registered |
+| Federation stats | Used when the host has a federation route and Federation's `summary-keys.d` exists. A key is generated and dropped there; Signpost reads `http://federation:8090` over the mgmt network |
 | Login | Hydra client and cookie secrets are generated and kept in `/etc/goat/signpost/`. Groups follow the identity console |
 | Certificates, mesh-only rule | Follow the portal's settings |
 
@@ -59,7 +60,7 @@ The play fails if an anonymous request is not redirected to the login.
 
 **7. Optional: mesh peer stats.** Create a NetBird service user with the `auditor` role, add
 its token to your secrets as `<SITE_ID_UPPER>_SIGNPOST_NETBIRD_TOKEN`, and re-run step 6. The
-Mesh peers tile shows "Off" until then.
+Mesh peers tile is left off until then.
 
 ## Check it by hand
 
@@ -94,4 +95,5 @@ signpost_allowed_groups: "PLATFORM-ADMIN"
 
 Remove `/etc/traefik/dynamic/signpost.yml`, then run `docker compose down` in `/opt/signpost` and
 `/opt/mgmt-host/oauth2-proxy-signpost`. Nothing else depends on Signpost. To also drop its portal
-access, delete `/opt/goat-zenoh-portal/operator-keys.d/signpost.key`.
+access, delete `/opt/goat-zenoh-portal/operator-keys.d/signpost.key`, and for Federation,
+`/etc/goat/federation/app/summary-keys.d/signpost.key`.

@@ -19,15 +19,16 @@ type pageData struct {
 }
 
 type liveData struct {
-	Now      time.Time
-	Started  bool
-	Tiles    []tile
-	Sections []sectionView
-	NetBird  *collect.NetBirdStats
-	Portal   *collect.PortalStats
-	Prom     []collect.PromStats
-	Hosts    []hostRow
-	Alerts   []alertRow
+	Now        time.Time
+	Started    bool
+	Tiles      []tile
+	Sections   []sectionView
+	NetBird    *collect.NetBirdStats
+	Portal     *collect.PortalStats
+	Federation *collect.FederationStats
+	Prom       []collect.PromStats
+	Hosts      []hostRow
+	Alerts     []alertRow
 }
 
 type tile struct {
@@ -63,11 +64,12 @@ type alertRow struct {
 
 func buildLive(cfg *config.Config, snap collect.Snapshot, now time.Time) liveData {
 	d := liveData{
-		Now:     now,
-		Started: !snap.GeneratedAt.IsZero(),
-		NetBird: snap.NetBird,
-		Portal:  snap.Portal,
-		Prom:    snap.Prometheus,
+		Now:        now,
+		Started:    !snap.GeneratedAt.IsZero(),
+		NetBird:    snap.NetBird,
+		Federation: snap.Federation,
+		Portal:     snap.Portal,
+		Prom:       snap.Prometheus,
 	}
 
 	sections := snap.Sections
@@ -98,17 +100,21 @@ func buildLive(cfg *config.Config, snap collect.Snapshot, now time.Time) liveDat
 		}
 	}
 
-	d.Tiles = []tile{
-		servicesTile(d.Sections),
-		meshTile(snap.NetBird),
-		alertsTile(snap.Prometheus),
-		fabricTile(snap.Portal),
+	// A tile shows only when its source is configured: one never set up is
+	// left off the page, not shown as "Off".
+	d.Tiles = []tile{servicesTile(d.Sections)}
+	if snap.Federation != nil {
+		d.Tiles = append(d.Tiles, federationTile(snap.Federation))
 	}
+	if snap.NetBird != nil {
+		d.Tiles = append(d.Tiles, meshTile(snap.NetBird))
+	}
+	d.Tiles = append(d.Tiles, alertsTile(snap.Prometheus), fabricTile(snap.Portal))
 	return d
 }
 
 // reservedIDs are element ids already on the page, so a link cannot take them.
-var reservedIDs = map[string]bool{"observability": true, "offline-peers": true, "sp-live": true, "sp-frame": true}
+var reservedIDs = map[string]bool{"observability": true, "offline-peers": true, "federation-peerings": true, "sp-live": true, "sp-frame": true}
 
 // linkIDs gives each framed link a short, unique id made from its name, in
 // config order. Links that open normally get "".
@@ -210,6 +216,57 @@ func meshTile(nb *collect.NetBirdStats) tile {
 		}
 	}
 	return t
+}
+
+func federationTile(f *collect.FederationStats) tile {
+	t := tile{Label: "Federation", Value: "—"}
+	switch {
+	case !f.Configured:
+		t.Detail, t.Chip, t.Status = "No key set", "muted", "Off"
+	case f.UpdatedAt.IsZero() && f.Error == "":
+		t.Detail, t.Chip, t.Status = "Checking", "muted", "Pending"
+	case f.UpdatedAt.IsZero():
+		t.Detail, t.Chip, t.Status = f.Error, "err", "Unavailable"
+	default:
+		t.Value = fmt.Sprintf("%d/%d", f.Live, f.Total())
+		t.Detail = "peerings live"
+		switch {
+		case f.Error != "":
+			t.Detail, t.Chip, t.Status = f.Error, "warn", "Stale"
+		case f.Total() == 0:
+			t.Value, t.Detail, t.Chip, t.Status = "0", "No peerings yet", "muted", "None"
+		case f.Attention > 0:
+			t.Chip, t.Status = "err", fmt.Sprintf("%d need attention", f.Attention)
+		case f.Setting > 0:
+			t.Chip, t.Status = "info", fmt.Sprintf("%d in setup", f.Setting)
+		default:
+			t.Chip, t.Status = "ok", "All live"
+		}
+	}
+	return t
+}
+
+// fedChip and fedLabel style a peering's state from Federation's summary.
+func fedChip(state string) string {
+	switch state {
+	case "live":
+		return "ok"
+	case "setup":
+		return "info"
+	default:
+		return "err"
+	}
+}
+
+func fedLabel(state string) string {
+	switch state {
+	case "live":
+		return "Live"
+	case "setup":
+		return "In setup"
+	default:
+		return "Attention"
+	}
 }
 
 func alertsTile(proms []collect.PromStats) tile {

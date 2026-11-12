@@ -36,8 +36,11 @@ if fixture == "full":
     assert titles == ["Administer", "Observe", "Help", "Play", "Other"], titles
     assert set(links) == {
         "NetBird dashboard", "Portal", "Account", "Panoscope", "Guide", "Air Defenders", "Sentry",
-        "Grafana (obs-one)", "Grafana (obs-two)", "New App",
+        "Grafana (obs-one)", "Grafana (obs-two)", "New App", "Federation",
     }, sorted(links)
+    admin = [l["name"] for s in status["sections"] if s["title"] == "Administer" for l in s["links"]]
+    assert "Federation" in admin, admin
+    assert config["sources"]["federation"]["url"] == "http://federation:8090", config["sources"]
     assert links["New App"]["url"] == "https://new-app.demo.example.net/"
     assert links["Account"]["url"] == "https://auth.demo.example.net/settings"
     assert links["Account"]["probe_url"] == "https://auth.demo.example.net/"
@@ -56,6 +59,7 @@ else:
     assert titles == ["Administer"], titles
     assert set(links) == {"NetBird dashboard"}, sorted(links)
     assert "portal" not in config["sources"], "no route, so no portal source"
+    assert "federation" not in config["sources"], "no route or key store, so no federation source"
     assert "prometheus" not in config["sources"], "no obs hosts"
     assert router["middlewares"] == ["mesh-only-allowlist@file"], "no rate limit defined"
 

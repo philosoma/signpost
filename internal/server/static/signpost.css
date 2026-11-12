@@ -289,6 +289,7 @@ th {
 tbody tr:hover td { background: var(--ink-3); }
 .cell-note { color: var(--err-text); font-size: .86em; }
 .cell-note.warn { color: var(--warn-text); }
+.cell-detail { margin-left: .4em; color: var(--fog-2); font-size: .92em; }
 td.is-warn { color: var(--warn-text); }
 td.is-err { color: var(--err-text); font-weight: 600; }
 

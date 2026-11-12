@@ -34,6 +34,21 @@
 </section>
 {{end}}
 
+{{with .Federation}}{{if .Links}}
+<section id="federation-peerings">
+  <h2 class="section-title">Federation</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Partner</th><th>State</th></tr></thead>
+    <tbody>
+    {{range .Links}}<tr><td>{{.Name}}</td><td><span class="badge {{fedChip .State}}">{{fedLabel .State}}</span>{{if .Detail}} <span class="cell-detail">{{.Detail}}</span>{{end}}</td></tr>{{end}}
+    </tbody>
+  </table>
+  </div>
+  {{if .Error}}<div class="cell-note warn">Stale: {{.Error}}</div>{{end}}
+</section>
+{{end}}{{end}}
+
 {{if .Prom}}
 <section id="observability">
   <h2 class="section-title">Observability</h2>

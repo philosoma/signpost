@@ -29,6 +29,7 @@
       Links: {{ signpost_detected.sections | map(attribute='links') | flatten | map(attribute='name') | join(', ') }}.
       Prometheus: {{ signpost_detected.prometheus | map(attribute='name') | join(', ') or 'none' }}.
       Portal: {{ signpost_effective_portal_url or 'none' }}.
+      Federation: {{ signpost_effective_federation_url or 'none' }}.
       NetBird: {{ signpost_netbird_url if signpost_netbird_token | length > 0 else 'no token' }}.
 
 # --- Secrets -------------------------------------------------------------------
@@ -84,6 +85,27 @@
         portal_key_assert_service: signpost
         portal_key_assert_url: "{{ signpost_effective_portal_url }}"
         portal_key_assert_key: "{{ signpost_portal_api_key }}"
+
+# Federation reads its key store on every request, so it needs no restart.
+- name: signpost | federation key
+  when: signpost_effective_federation_url | length > 0
+  block:
+    - name: signpost | federation summary key
+      ansible.builtin.include_tasks: persisted-secret.yml
+      vars:
+        persisted_name: federation-key
+        persisted_fact: signpost_federation_key
+        persisted_supplied: ""
+        persisted_generate: "-hex 32"
+
+    - name: signpost | register the key in Federation's summary key store
+      ansible.builtin.copy:
+        content: "{{ signpost_federation_key_id }}:{{ signpost_federation_key }}\n"
+        dest: "{{ signpost_federation_keystore_dir }}/{{ signpost_federation_key_id }}.key"
+        owner: root
+        group: "{{ signpost_federation_uid }}"
+        mode: "0640"
+      no_log: true
 
 # --- The app -------------------------------------------------------------------
 - name: signpost | compose directory

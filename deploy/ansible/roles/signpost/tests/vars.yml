@@ -7,5 +7,7 @@ ansible_architecture: aarch64
 signpost_portal_api_key: not-a-real-key
 signpost_traefik_dynamic_dir: "{{ playbook_dir }}/fixtures/{{ fixture }}"
 signpost_netbird_token: ""
+# Only the full fixture has Federation's summary key store (fedkeys/ is a dir).
+signpost_federation_keystore_dir: "{{ playbook_dir }}/fixtures/{{ fixture }}/fedkeys"
 # The test runs Signpost outside a container, so it reads the fixtures directly.
 signpost_routes_container_dir: "{{ playbook_dir }}/fixtures/{{ fixture }}"

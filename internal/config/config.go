@@ -107,6 +107,7 @@ func (l Link) Framed() bool {
 type Sources struct {
 	NetBird    *Endpoint    `json:"netbird,omitempty"`
 	Portal     *Endpoint    `json:"portal,omitempty"`
+	Federation *Endpoint    `json:"federation,omitempty"`
 	Prometheus []Prometheus `json:"prometheus,omitempty"`
 }
 
@@ -123,15 +124,17 @@ type Prometheus struct {
 
 // Secrets are read from the environment, never from the config file.
 type Secrets struct {
-	NetBirdToken string
-	PortalAPIKey string
+	NetBirdToken  string
+	PortalAPIKey  string
+	FederationKey string
 }
 
 // SecretsFromEnv reads the secrets Signpost understands.
 func SecretsFromEnv() Secrets {
 	return Secrets{
-		NetBirdToken: strings.TrimSpace(os.Getenv("SIGNPOST_NETBIRD_TOKEN")),
-		PortalAPIKey: strings.TrimSpace(os.Getenv("SIGNPOST_PORTAL_API_KEY")),
+		NetBirdToken:  strings.TrimSpace(os.Getenv("SIGNPOST_NETBIRD_TOKEN")),
+		PortalAPIKey:  strings.TrimSpace(os.Getenv("SIGNPOST_PORTAL_API_KEY")),
+		FederationKey: strings.TrimSpace(os.Getenv("SIGNPOST_FEDERATION_KEY")),
 	}
 }
 
@@ -245,6 +248,11 @@ func (c *Config) Validate() error {
 	if c.Sources.Portal != nil {
 		if err := checkURL(c.Sources.Portal.URL); err != nil {
 			errs = append(errs, fmt.Errorf("sources.portal.url: %w", err))
+		}
+	}
+	if c.Sources.Federation != nil {
+		if err := checkURL(c.Sources.Federation.URL); err != nil {
+			errs = append(errs, fmt.Errorf("sources.federation.url: %w", err))
 		}
 	}
 	for i, p := range c.Sources.Prometheus {
