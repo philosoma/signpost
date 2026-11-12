@@ -296,3 +296,39 @@ func TestPortalWithNeitherEndpointIsAnError(t *testing.T) {
 		t.Fatalf("stats = %+v", p)
 	}
 }
+
+func TestFederation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/summary" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer fk" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		fmt.Fprint(w, `{"checked":"2026-11-12T20:00:00Z","errors":0,"live":1,"attention":0,"setting":1,"links":[{"them":"lva","name":"Latvia","state":"live","detail":"Up"},{"them":"bgr","name":"Bulgaria","state":"setup","detail":"In setup: step 3 of 9"}]}`)
+	}))
+	defer srv.Close()
+
+	cfg := &config.Config{Sources: config.Sources{Federation: &config.Endpoint{URL: srv.URL}}}
+	c := New(cfg, config.Secrets{FederationKey: "fk"}, quiet())
+	c.Refresh(context.Background())
+	f := c.Snapshot().Federation
+	if !f.OK() || f.Live != 1 || f.Setting != 1 || f.Total() != 2 || len(f.Links) != 2 || f.Links[1].Name != "Bulgaria" || f.Links[1].State != "setup" {
+		t.Fatalf("stats = %+v", f)
+	}
+
+	// A wrong key keeps the last counts and says why.
+	c2 := New(cfg, config.Secrets{FederationKey: "wrong"}, quiet())
+	c2.Refresh(context.Background())
+	if f := c2.Snapshot().Federation; f.Error == "" || !f.Configured {
+		t.Fatalf("wrong key: %+v", f)
+	}
+	// No key: configured as a source, but off.
+	c3 := New(cfg, config.Secrets{}, quiet())
+	c3.Refresh(context.Background())
+	if f := c3.Snapshot().Federation; f.Configured {
+		t.Fatalf("no key: %+v", f)
+	}
+}

@@ -2,6 +2,9 @@
 {% if signpost_effective_portal_url | length > 0 %}
 {% set _ = sources.update({'portal': {'url': signpost_effective_portal_url}}) %}
 {% endif %}
+{% if signpost_effective_federation_url | default('') | length > 0 %}
+{% set _ = sources.update({'federation': {'url': signpost_effective_federation_url}}) %}
+{% endif %}
 {% if signpost_netbird_token | length > 0 %}
 {% set _ = sources.update({'netbird': {'url': signpost_netbird_url}}) %}
 {% endif %}

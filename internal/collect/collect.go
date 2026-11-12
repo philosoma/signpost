@@ -34,10 +34,11 @@ type Snapshot struct {
 	Sections []config.Section `json:"sections"`
 	Links    []LinkStatus     `json:"links"`
 	// Discovery reports the last read of the route files, when discovery is on.
-	Discovery  *Health       `json:"discovery,omitempty"`
-	NetBird    *NetBirdStats `json:"netbird,omitempty"`
-	Portal     *PortalStats  `json:"portal,omitempty"`
-	Prometheus []PromStats   `json:"prometheus"`
+	Discovery  *Health          `json:"discovery,omitempty"`
+	NetBird    *NetBirdStats    `json:"netbird,omitempty"`
+	Portal     *PortalStats     `json:"portal,omitempty"`
+	Federation *FederationStats `json:"federation,omitempty"`
+	Prometheus []PromStats      `json:"prometheus"`
 }
 
 // Health is the freshness of one source.
@@ -93,6 +94,9 @@ func New(cfg *config.Config, secrets config.Secrets, log *slog.Logger) *Collecto
 	}
 	if cfg.Sources.Portal != nil {
 		c.snap.Portal = &PortalStats{}
+	}
+	if cfg.Sources.Federation != nil {
+		c.snap.Federation = &FederationStats{}
 	}
 	for _, p := range cfg.Sources.Prometheus {
 		c.snap.Prometheus = append(c.snap.Prometheus, PromStats{Name: p.Name})
@@ -160,6 +164,9 @@ func (c *Collector) Refresh(ctx context.Context) {
 	}
 	if c.cfg.Sources.Portal != nil {
 		run(func() { c.collectPortal(ctx) })
+	}
+	if c.cfg.Sources.Federation != nil {
+		run(func() { c.collectFederation(ctx) })
 	}
 	for i, p := range c.cfg.Sources.Prometheus {
 		idx, src := i, p

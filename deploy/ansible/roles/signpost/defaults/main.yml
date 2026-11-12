@@ -42,7 +42,16 @@ signpost_portal_key_seed: ""
 signpost_portal_keystore_dir: /opt/goat-zenoh-portal/operator-keys.d
 signpost_portal_key_id: signpost
 
-# NetBird: optional. With no token the tile shows "Off" and no request is made.
+# Federation: used when the node runs the Federation app with a summary key
+# store (summary-keys.d, made by the federation role). Signpost reads it over
+# the mgmt network, not through the login door, with its own key.
+signpost_federation_url: ""
+signpost_federation_internal_url: "http://federation:8090"
+signpost_federation_keystore_dir: /etc/goat/federation/app/summary-keys.d
+signpost_federation_key_id: signpost
+signpost_federation_uid: 65532
+
+# NetBird: optional. With no token the tile is left off and no request is made.
 # Use a service user with the auditor role.
 signpost_netbird_url: "https://{{ public_mgmt_fqdn | default('netbird.' ~ site_dns_zone) }}"
 signpost_netbird_token: "{{ lookup('env', (site_id_upper | default(site_id | upper | replace('-', '_'))) ~ '_SIGNPOST_NETBIRD_TOKEN') }}"
@@ -77,6 +86,7 @@ signpost_catalogue:
   - {section: Administer, prefix: admin.auth, name: Identity console, description: "People, groups and onboarding"}
   - {section: Administer, prefix: auth, name: Account, description: "Your password and security settings", path: /settings}
   - {section: Administer, prefix: herd, name: Herd, description: "Bearer-gear console"}
+  - {section: Administer, prefix: federation, name: Federation, description: "Run the federation phases with a host nation"}
   - {section: Observe, prefix: panoscope, name: Panoscope, description: "The whole goatnet at a glance"}
   - {section: Observe, prefix: flashlight, name: Flashlight, description: "Live fabric traffic and audit analytics"}
   - {section: Observe, prefix: stethoscope, name: Stethoscope, description: "Graded fabric health"}

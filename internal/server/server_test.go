@@ -167,8 +167,8 @@ func TestMeshTileStates(t *testing.T) {
 }
 
 func TestSnapshotNeverIncludesSecrets(t *testing.T) {
-	cfg := &config.Config{Sources: config.Sources{NetBird: &config.Endpoint{URL: "http://127.0.0.1:1"}, Portal: &config.Endpoint{URL: "http://127.0.0.1:1"}}}
-	c := collect.New(cfg, config.Secrets{NetBirdToken: "SECRET-NB", PortalAPIKey: "SECRET-PORTAL"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	cfg := &config.Config{Sources: config.Sources{NetBird: &config.Endpoint{URL: "http://127.0.0.1:1"}, Portal: &config.Endpoint{URL: "http://127.0.0.1:1"}, Federation: &config.Endpoint{URL: "http://127.0.0.1:1"}}}
+	c := collect.New(cfg, config.Secrets{NetBirdToken: "SECRET-NB", PortalAPIKey: "SECRET-PORTAL", FederationKey: "SECRET-FED"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	c.Refresh(t.Context())
 	h, err := New(testConfig(), c, "t", slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
@@ -232,6 +232,60 @@ func TestLiveCarriesTheMenuAndUsesSnapshotSections(t *testing.T) {
 		body := get(h, path, admin).Body.String()
 		if !strings.Contains(body, `id="sp-menu-next"`) || strings.Count(body, `data-frame="found-app"`) < 2 {
 			t.Errorf("%s: menu or link missing", path)
+		}
+	}
+}
+
+func TestFederationTileStates(t *testing.T) {
+	now := time.Now()
+	ok := collect.Health{UpdatedAt: now}
+	cases := []struct {
+		in     *collect.FederationStats
+		status string
+		value  string
+	}{
+		{&collect.FederationStats{Configured: false}, "Off", "—"},
+		{&collect.FederationStats{Configured: true}, "Pending", "—"},
+		{&collect.FederationStats{Configured: true, Health: collect.Health{Error: "HTTP 401"}}, "Unavailable", "—"},
+		{&collect.FederationStats{Configured: true, Health: ok}, "None", "0"},
+		{&collect.FederationStats{Configured: true, Live: 2, Health: ok}, "All live", "2/2"},
+		{&collect.FederationStats{Configured: true, Live: 1, Setting: 1, Health: ok}, "1 in setup", "1/2"},
+		{&collect.FederationStats{Configured: true, Live: 1, Attention: 1, Setting: 1, Health: ok}, "1 need attention", "1/3"},
+		{&collect.FederationStats{Configured: true, Live: 1, Health: collect.Health{UpdatedAt: now, Error: "timed out"}}, "Stale", "1/1"},
+	}
+	for _, tc := range cases {
+		got := federationTile(tc.in)
+		if got.Status != tc.status || got.Value != tc.value {
+			t.Errorf("%+v: got %q %q", tc.in, got.Status, got.Value)
+		}
+	}
+}
+
+func TestUnconfiguredTilesAreLeftOff(t *testing.T) {
+	labels := func(snap collect.Snapshot) []string {
+		var out []string
+		for _, tl := range buildLive(testConfig(), snap, time.Now()).Tiles {
+			out = append(out, tl.Label)
+		}
+		return strings.Split(strings.Join(out, ","), ",")
+	}
+	got := strings.Join(labels(collect.Snapshot{}), ",")
+	if strings.Contains(got, "Mesh peers") || strings.Contains(got, "Federation") {
+		t.Fatalf("unconfigured tiles shown: %s", got)
+	}
+	got = strings.Join(labels(collect.Snapshot{NetBird: &collect.NetBirdStats{}, Federation: &collect.FederationStats{}}), ",")
+	if got != "Services,Federation,Mesh peers,Firing alerts,Fabric orgs" {
+		t.Fatalf("tiles = %s", got)
+	}
+}
+
+func TestPageListsFederationPeerings(t *testing.T) {
+	snap := collect.Snapshot{Federation: &collect.FederationStats{Configured: true, Live: 1, Setting: 1, Health: collect.Health{UpdatedAt: time.Now()},
+		Links: []collect.FederationLink{{Name: "Latvia", State: "live", Detail: "Up"}, {Name: "Bulgaria", State: "setup", Detail: "In setup: step 3 of 9"}}}}
+	body := get(handler(t, snap), "/", admin).Body.String()
+	for _, want := range []string{`id="federation-peerings"`, "Latvia", "Bulgaria", "In setup: step 3 of 9", "1/2"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("page lacks %q", want)
 		}
 	}
 }

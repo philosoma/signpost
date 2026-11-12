@@ -42,6 +42,7 @@
   "sources": {
     "netbird": { "url": "https://netbird.example.net" },
     "portal": { "url": "https://portal.example.net" },
+    "federation": { "url": "http://federation:8090" },
     "prometheus": [{ "name": "obs-1", "url": "http://192.0.2.10:9090" }]
   }
 }

@@ -16,3 +16,4 @@ http:
     j: {rule: "Host(`sentry.demo.example.net`)"}
     k: {rule: "Host(`mgmt.demo.example.net`)"}
     l: {rule: "Host(`new-app.demo.example.net`)"}
+    m: {rule: "Host(`federation.demo.example.net`)"}
