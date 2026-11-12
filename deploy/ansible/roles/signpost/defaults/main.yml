@@ -77,6 +77,7 @@ signpost_catalogue:
   - {section: Administer, prefix: admin.auth, name: Identity console, description: "People, groups and onboarding"}
   - {section: Administer, prefix: auth, name: Account, description: "Your password and security settings", path: /settings}
   - {section: Administer, prefix: herd, name: Herd, description: "Bearer-gear console"}
+  - {section: Administer, prefix: federation, name: Federation, description: "Run the federation phases with a host nation"}
   - {section: Observe, prefix: panoscope, name: Panoscope, description: "The whole goatnet at a glance"}
   - {section: Observe, prefix: flashlight, name: Flashlight, description: "Live fabric traffic and audit analytics"}
   - {section: Observe, prefix: stethoscope, name: Stethoscope, description: "Graded fabric health"}
