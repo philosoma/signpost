@@ -289,3 +289,14 @@ func TestPageListsFederationPeerings(t *testing.T) {
 		}
 	}
 }
+
+func TestPageHasTheFavicon(t *testing.T) {
+	h := handler(t, collect.Snapshot{})
+	if body := get(h, "/", admin).Body.String(); !strings.Contains(body, `rel="icon" type="image/svg+xml" href="/static/favicon.svg"`) {
+		t.Fatal("page lacks the favicon link")
+	}
+	rec := get(h, "/static/favicon.svg", admin)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "<svg") || !strings.Contains(rec.Header().Get("Content-Type"), "svg") {
+		t.Fatalf("favicon: %d %q", rec.Code, rec.Header().Get("Content-Type"))
+	}
+}
